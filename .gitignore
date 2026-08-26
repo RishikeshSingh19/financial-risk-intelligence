@@ -36,3 +36,6 @@ mlruns/
 # Logs
 *.log
 development/
+
+# MLflow local tracking database
+mlflow.db
