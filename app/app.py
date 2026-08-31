@@ -1,10 +1,12 @@
+import json
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from data import load_dashboard_data, load_monitoring_data
+from data import load_dashboard_data
 from shap_utils import calculate_customer_shap_by_id, load_model
 
 
@@ -13,6 +15,24 @@ st.set_page_config(
     page_icon="💳",
     layout="wide",
 )
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+RISK_CONFIG_PATH = BASE_DIR / "models" / "risk_config.json"
+
+MONITORING_OUTPUT_PATH = (
+    BASE_DIR / "data" / "processed" / "model_monitoring_output.csv"
+)
+
+@st.cache_data
+def load_risk_config():
+    """Load model risk configuration."""
+    with open(RISK_CONFIG_PATH, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+def get_classification_threshold():
+    """Return the configured model classification threshold."""
+    config = load_risk_config()
+    return float(config["classification_threshold"])
 
 
 # ---------------------------------------------------------------------
@@ -35,7 +55,11 @@ def get_dashboard_data():
 
 @st.cache_data(ttl=300)
 def get_monitoring_data():
-    return load_monitoring_data()
+    """Load generated model monitoring metrics."""
+    if not MONITORING_OUTPUT_PATH.exists():
+        return pd.DataFrame()
+
+    return pd.read_csv(MONITORING_OUTPUT_PATH)
 
 
 @st.cache_resource
@@ -86,7 +110,7 @@ MARITAL_STATUS_LABELS = {
 }
 
 
-def risk_color(risk_tier):
+def risk_icon(risk_tier):
     """Return a display icon for a risk tier."""
     return RISK_ICONS.get(str(risk_tier), "⚪")
 
@@ -466,7 +490,7 @@ def customer_lookup(df):
 
     st.subheader(
         f"Customer {selected_id} "
-        f"{risk_color(risk_tier)} {risk_tier} Risk"
+        f"{risk_icon(risk_tier)} {risk_tier} Risk"
     )
 
     col1, col2, col3, col4 = st.columns(4)
@@ -731,6 +755,54 @@ def model_monitoring():
 
     st.divider()
 
+    st.subheader("Model Performance")
+
+    classification_df = monitoring_df[
+        monitoring_df["metric_group"] == "classification"
+    ]
+
+    discrimination_df = monitoring_df[
+        monitoring_df["metric_group"] == "discrimination"
+    ]
+
+    if not classification_df.empty or not discrimination_df.empty:
+
+        metrics = {}
+
+        if not discrimination_df.empty:
+            metrics["ROC-AUC"] = float(
+                discrimination_df.iloc[0]["average_pd"]
+            )
+
+        for metric_name in [
+            "accuracy",
+            "precision",
+            "recall",
+            "f1",
+        ]:
+            row = classification_df[
+                classification_df["metric"] == metric_name
+            ]
+
+            if not row.empty:
+                metrics[metric_name.upper()] = float(
+                    row.iloc[0]["average_pd"]
+                )
+
+        metric_columns = st.columns(len(metrics))
+
+        for column, (label, value) in zip(
+            metric_columns,
+            metrics.items(),
+        ):
+            with column:
+                st.metric(
+                    label,
+                    f"{value:.3f}",
+                )
+
+    st.divider()
+
     st.subheader("Risk-Tier Monitoring")
 
     risk_df = monitoring_df[
@@ -884,9 +956,11 @@ def model_info():
         )
 
     with col3:
+        threshold = get_classification_threshold()
+
         st.metric(
             "Classification Threshold",
-            "0.30",
+            f"{threshold:.2f}",
         )
 
     st.divider()
