@@ -5,7 +5,7 @@ from src.database import get_connection
 
 FEATURE_DATA_PATH = "data/processed/credit_risk_features.csv"
 SEGMENT_DATA_PATH = "data/processed/customer_segmentation_output.csv"
-RISK_DATA_PATH = "data/processed/customer_risk_output.csv"
+RISK_DATA_PATH = "data/processed/customer_risk_output_full.csv"
 
 
 def load_customers(conn):
@@ -111,11 +111,11 @@ def load_risk_predictions(conn):
     df = pd.read_csv(RISK_DATA_PATH)
 
     records = pd.DataFrame({
-        "customer_id": df["customer_index"] + 1,
+        "customer_id": df["customer_id"],
         "pd": df["pd"],
         "risk_tier": df["risk_tier"],
         "actual_default": df["actual_default"],
-        "model_name": "XGBoost",
+        "model_name": df["model_name"],
         "prediction_date": pd.Timestamp.today().date(),
     })
 
@@ -150,6 +150,12 @@ def load_model_metadata(conn):
     with conn.cursor() as cur:
         cur.execute(
             """
+            DELETE FROM model_metadata
+            """
+        )
+
+        cur.execute(
+            """
             INSERT INTO model_metadata (
                 model_name,
                 model_version,
@@ -172,7 +178,6 @@ def load_model_metadata(conn):
         )
 
     print("Loaded model metadata.")
-
 
 def main():
     conn = get_connection()

@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: credit-risk-postgres
+    environment:
+      POSTGRES_DB: credit_risk_db
+      POSTGRES_USER: credit_risk
+      POSTGRES_PASSWORD: credit_risk_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U credit_risk -d credit_risk_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: credit-risk-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: credit_risk_db
+      DB_USER: credit_risk
+      DB_PASSWORD: credit_risk_password
+      PYTHONPATH: /app
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
