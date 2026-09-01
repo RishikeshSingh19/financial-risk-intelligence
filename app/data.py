@@ -8,7 +8,7 @@ from src.database import get_connection
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 FEATURE_DATA_PATH = BASE_DIR / "data/processed/credit_risk_features.csv"
-RISK_DATA_PATH = BASE_DIR / "data/processed/customer_risk_output.csv"
+RISK_DATA_PATH = BASE_DIR / "data/processed/customer_risk_output_full.csv"
 SEGMENT_DATA_PATH = BASE_DIR / "data/processed/customer_segmentation_output.csv"
 MONITORING_DATA_PATH = BASE_DIR / "data/processed/model_monitoring_output.csv"
 
@@ -74,7 +74,6 @@ def load_from_csv():
     features["customer_id"] = range(1, len(features) + 1)
 
     risk = risk.copy()
-    risk["customer_id"] = risk["customer_index"] + 1
 
     segments = segments.copy()
     segments["customer_id"] = segments["customer_index"] + 1
