@@ -172,7 +172,7 @@ def load_model_metadata(conn):
             (
                 "XGBoost",
                 "1.0",
-                0.5,
+                0.3,
                 "Selected XGBoost credit-risk model used for Probability of Default estimation."
             ),
         )
